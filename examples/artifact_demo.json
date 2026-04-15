@@ -1,0 +1,9 @@
+{
+  "artifact_id": "demo-essay-1",
+  "artifact_type": "essay",
+  "artifact_content": "I walked through the city at dusk, crossing from the market into the quieter streets near the river. The noise faded block by block, and the evening felt less like an ending and more like a slow settling. By the time I reached the bridge, the lights in the windows had started to glow, and the whole walk seemed to gather into one reflective pause.",
+  "metadata": {
+    "domain": "creative_writing",
+    "topic": "reflective city essay"
+  }
+}
