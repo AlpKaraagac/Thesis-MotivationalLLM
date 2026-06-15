@@ -1,0 +1,14 @@
+# Dependencies for the Thesis-MotivationalLLM analysis notebooks.
+# (No reproduction package is vendored here anymore; the analysis consumes published datasets.)
+
+# Data loading (ThoughtTrace + official DiscoverLLM dataset)
+datasets>=4.0   # needs the `List` feature type, added in datasets 4.0 (tested on 5.0.0)
+pandas>=2.0
+
+# Morpheus (OpenAI-compatible) client + .env loading (notebook 03)
+openai>=1.0
+python-dotenv>=1.0
+
+# Notebooks
+jupyter>=1.0
+matplotlib>=3.8   # >=3.8 for NumPy 2 compatibility

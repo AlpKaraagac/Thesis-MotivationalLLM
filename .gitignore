@@ -37,3 +37,9 @@ agents/
 
 # Requested local ignore
 tests/
+
+# Generated intent-tree extractions (regenerable via scripts/extract_intent_trees.py).
+# The frozen Claude Sonnet gold reference (data/sonnet_extractions/) stays tracked.
+data/extractions/
+data/extractions_*/
+data/morpheus_extractions/
