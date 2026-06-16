@@ -7,9 +7,7 @@ personalization of LLM conversations.
 
 ## What this repo currently contains
 
-Exploratory analysis (on the `initial-analysis` branch) built on two **published** resources. This
-repo no longer vendors a local DiscoverLLM reproduction (see *Archived reproduction* below); it
-consumes the official DiscoverLLM dataset directly.
+Exploratory analysis (on the `initial-analysis` branch) built on two **published** resources.
 
 - **ThoughtTrace** — real multi-turn conversations with per-turn reason/reaction annotations.
   HF dataset: [`SCAI-JHU/ThoughtTrace`](https://huggingface.co/datasets/SCAI-JHU/ThoughtTrace).
@@ -25,6 +23,9 @@ consumes the official DiscoverLLM dataset directly.
    readiness to explore vs. execute).
 3. Maintain a **joint belief** over intent and psychological state.
 4. Condition assistant strategy selection on that joint belief, and compare against the baseline.
+
+This repository provides an initial idea on whether intents (intent trees) generated and used by DiscoverLLM
+are capable of representing real conversations by comparing trees generated from real conversations and DiscoverLLM itself.
 
 ## Notebooks
 
@@ -42,6 +43,12 @@ See [`notebooks/`](notebooks/) (and its README):
 pip install -r requirements.txt
 ```
 
+The intent-tree visualizers (`scripts/visualize_*.py`) also need the **Graphviz** system binary:
+
+```bash
+brew install graphviz   # macOS
+```
+
 Create a git-ignored `.env` at the repo root for the Morpheus endpoint (used by notebook 03):
 
 ```
@@ -50,10 +57,3 @@ MORPHEUS_MODEL=Qwen/Qwen3.6-35B-A3B   # optional
 MORPHEUS_BASE_URL=https://morpheus.cit.tum.de/api/   # optional
 HF_TOKEN=...                    # optional (silences the HF rate-limit warning)
 ```
-
-## Archived reproduction
-
-An earlier local DiscoverLLM-style reproduction previously lived under `src/discoverllm/` (intent-tree
-builder, simulator, reward, dataset generation). It has been **removed from the active branch** in
-favor of the official DiscoverLLM dataset, and is preserved on the **`archive/discoverllm-reproduction`**
-branch (tag `discoverllm-reproduction-archive`) for reference.

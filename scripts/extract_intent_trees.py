@@ -15,6 +15,7 @@ Examples:
   python scripts/extract_intent_trees.py --provider openai --model gpt-4.1-mini --n 15
   python scripts/extract_intent_trees.py --provider openai --n 15 --regroup
   python scripts/extract_intent_trees.py --provider openai --force         # ignore cache; redo all
+  python scripts/extract_intent_trees.py --provider openai --model gpt-5.4-mini --n 15 --discoverllm   
 """
 from __future__ import annotations
 
@@ -27,6 +28,8 @@ import time
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
+
+import pandas as pd
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -129,6 +132,39 @@ def render_transcript(rec):
         lines.append("")
     return "\n".join(lines).rstrip()
 
+def normalize_thoughttrace(rec):
+    return {
+        "id": rec["id"],
+        "transcript": render_transcript(rec),
+        "metadata": rec,
+    }
+
+
+def normalize_discoverllm(rec):
+    conversation = rec["conversation"]
+
+    # CSV stores this column as a JSON string (new helper output) or a Python repr (legacy).
+    if isinstance(conversation, str):
+        try:
+            conversation = json.loads(conversation)
+        except Exception:
+            import ast
+            conversation = ast.literal_eval(conversation)
+
+    lines = [f"CONVERSATION ID: {rec['artifact_id']}", "", "CONVERSATION:", ""]
+
+    for i, msg in enumerate(conversation, start=1):
+        role = msg["speaker"].upper()
+        lines.append(f"[TURN {i} — {role}]")
+        lines.append(msg["text"])
+        lines.append("")
+
+    return {
+        "id": rec["artifact_id"],
+        "transcript": "\n".join(lines).rstrip(),
+        "metadata": rec,
+    }
+
 
 def write_atomic(path: Path, obj) -> None:
     tmp = path.with_suffix(".json.tmp")
@@ -168,6 +204,7 @@ def main(argv=None) -> int:
     ap.add_argument("--force", action="store_true", help="ignore cache; redo all")
     ap.add_argument("--retries", type=int, default=4)
     ap.add_argument("--timeout", type=int, default=900, help="per-call client timeout in seconds")
+    ap.add_argument("--discoverllm", action="store_true", default=False, help="If set, use the DiscoverLLM conversation, extracted by the helper_build_discoverllm_conv_set.py script, instead of ThoughtTrace.")
     args = ap.parse_args(argv)
 
     global TRACK_USAGE
@@ -184,18 +221,33 @@ def main(argv=None) -> int:
 
     client = make_client(args.provider)
 
-    ds = load_dataset("SCAI-JHU/ThoughtTrace", split="train", token=os.environ.get("HF_TOKEN"))
-    by_id = {rec["id"]: rec for rec in ds}
-    if args.ids.strip():
-        sample = [x for x in (s.strip() for s in args.ids.split(",")) if x in by_id]
-        missing = [x for x in (s.strip() for s in args.ids.split(",")) if x and x not in by_id]
-        if missing:
-            print(f"  (ignoring unknown ids: {missing})")
+    if args.discoverllm:
+        sample_path = ROOT / "data" / "discoverllm_creative_writing_conversations.csv"
+
+        sample_df = pd.read_csv(sample_path)
+        
+        records = [
+            normalize_discoverllm(rec)
+            for _, rec in sample_df.iterrows()
+        ]
+
     else:
-        import pandas as pd
-        ids = [rec["id"] for rec in ds]
-        sample = pd.Series(ids).sample(n=min(args.n, len(ids)), random_state=args.seed).tolist()
-    print(f"to process: {len(sample)} conversations\n")
+        ds = load_dataset("SCAI-JHU/ThoughtTrace", split="train", token=os.environ.get("HF_TOKEN"))
+
+        records = [
+            normalize_thoughttrace(rec)
+            for rec in ds
+        ]
+
+    by_id = {r["id"]: r for r in records}
+
+    ids = list(by_id.keys())
+
+    sample = (
+        pd.Series(ids)
+        .sample(n=min(args.n, len(ids)), random_state=args.seed)
+        .tolist()
+    )
 
     ok = skip = fail = 0
     for i, cid in enumerate(sample, start=1):
@@ -205,17 +257,28 @@ def main(argv=None) -> int:
             print(f"[{i}/{len(sample)}] {cid}: cached — skip", flush=True)
             continue
         rec = by_id[cid]
-        n_msgs = len(rec.get("messages", []))
-        print(f"[{i}/{len(sample)}] {cid}: extracting ({n_msgs} msgs)...", flush=True)
+        n_turns = rec["transcript"].count("[TURN ")
+        print(f"[{i}/{len(sample)}] {cid}: extracting ({n_turns} turns)...", flush=True)
         meta = {"conv_id": cid, "model": MODEL, "provider": args.provider, "extraction_prompt_hash": ext_hash,
                 "regrouped": False, "extracted_at": datetime.now(timezone.utc).isoformat()}
         try:
             t0 = time.time()
             raw = stream_chat(
-                client, MODEL,
-                [{"role": "system", "content": ext_prompt},
-                 {"role": "user", "content": render_transcript(rec) + "\n\n" + EXTRACT_INSTRUCTION}],
-                json_mode=True, retries=args.retries, timeout=args.timeout)
+                client,
+                MODEL,
+                [
+                    {"role": "system", "content": ext_prompt},
+                    {
+                        "role": "user",
+                        "content": rec["transcript"]
+                                + "\n\n"
+                                + EXTRACT_INSTRUCTION
+                    }
+                ],
+                json_mode=True,
+                retries=args.retries,
+                timeout=args.timeout
+            )
             doc = json.loads(raw)
             if args.regroup:
                 rg_raw = stream_chat(

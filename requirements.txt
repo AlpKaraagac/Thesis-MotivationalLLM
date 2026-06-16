@@ -12,3 +12,6 @@ python-dotenv>=1.0
 # Notebooks
 jupyter>=1.0
 matplotlib>=3.8   # >=3.8 for NumPy 2 compatibility
+
+# Visualization of intent trees
+graphviz>=0.20  

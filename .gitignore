@@ -22,6 +22,7 @@ env/
 
 # Local outputs
 out/
+data/
 outputs/
 tmp/
 *.log
@@ -43,3 +44,8 @@ tests/
 data/extractions/
 data/extractions_*/
 data/morpheus_extractions/
+data/discoverllm_*_conversations.csv
+data/images/
+
+# Local notes and scratch files
+notes.md
